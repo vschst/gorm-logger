@@ -33,10 +33,15 @@ type Logger struct {
 
 
 func (l *Logger) createFields(args []interface{}) logrus.Fields {
-	return logrus.Fields{
+	fields := logrus.Fields{
 		"module": l.config.ModuleName,
-		"data":   args,
 	}
+
+	if len(args) > 0 {
+		fields["data"] = args
+	}
+
+	return fields
 }
 
 func (l* Logger) createEntry(ctx context.Context, args ...interface{}) *logrus.Entry {
@@ -92,13 +97,15 @@ func (l *Logger) Trace(ctx context.Context, begin time.Time, fc func() (string, 
 
 	switch {
 	case err != nil && l.config.LogLevel >= gormLogger.Error && !(errors.Is(err, gorm.ErrRecordNotFound) && l.config.SkipErrRecordNotFound):
-		fields[logrus.ErrorKey] = err
-		l.createEntry(ctx, fields).Errorf(traceErrStr, sql, elapsedMs, rowsLog)
+		fields[logrus.ErrorKey] = err.Error()
+		l.log.WithContext(ctx).WithFields(fields).Errorf(traceErrStr, sql, elapsedMs, rowsLog)
 	case l.config.SlowThreshold != 0 && elapsed > l.config.SlowThreshold && l.config.LogLevel >= gormLogger.Warn:
 		slowLog := fmt.Sprintf("SLOW SQL >= %v", l.config.SlowThreshold)
-		l.createEntry(ctx, fields).Warnf(traceWarnStr, sql, slowLog, elapsedMs, rowsLog)
+		l.log.WithContext(ctx).WithFields(fields).Warnf(traceWarnStr, sql, slowLog, elapsedMs, rowsLog)
 	case l.config.LogLevel == gormLogger.Info:
-		l.createEntry(ctx, fields).Debugf(traceStr, sql, elapsedMs, rowsLog)
+		l.log.WithContext(ctx).WithFields(fields).Infof(traceStr, sql, elapsedMs, rowsLog)
+	default:
+		l.log.WithContext(ctx).WithFields(fields).Debugf(traceStr, sql, elapsedMs, rowsLog)
 	}
 }
 

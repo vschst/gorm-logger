@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	gormLogger "gorm.io/gorm/logger"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -17,6 +19,8 @@ type LogRow struct {
 	Message	string	`json:"msg"`
 	Module	string	`json:"module"`
 	Data	[]interface{}	`json:"data"`
+	Test	string `json:"test"`
+	Error	string	`json:"error"`
 }
 
 func setupLogger(config Config) (context.Context, *bytes.Buffer, *logrus.Logger, *Logger) {
@@ -257,17 +261,110 @@ func TestLoggerError(t *testing.T) {
 	}
 }
 
-func TestLoggerTrace(t *testing.T) {
+func TestLoggerTraceError(t *testing.T) {
+	sourceField := "test"
 	ctx, buf, _, l := setupLogger(Config{
-		SourceField: "test",
+		SourceField: sourceField,
 	})
 
 	fc := func() (string, int64) {
-		return "SELECT 1 FROM table", 0
+		return "", -1
 	}
 
-	l.Trace(ctx, time.Time{}, fc, nil)
+	errorText := "custom_error"
+	l.Trace(ctx, time.Now(), fc, errors.New(errorText))
 
-	t.Errorf("%v", buf.String())
+	var logData LogRow
+	if err := json.Unmarshal(buf.Bytes(), &logData); err != nil {
+		t.Errorf("Trace() error checking error, failed to parse log row: %v", err)
+	}
+
+	levelWant := "error"
+	if logData.Level != levelWant {
+		t.Errorf("Trace() error checking error, unexpected log level '%v', expected '%v'", logData.Level, levelWant)
+	}
+
+	if logData.Test == "" {
+		t.Errorf("Trace() error checking error, source key '%v' doesn't exists on log row: %v", sourceField, buf.String())
+	}
+
+	if logData.Error != errorText {
+		t.Errorf("Trace() error checking error, invalid error field value on log, got '%v', expected: %v", logData.Error, errorText)
+	}
+}
+
+func TestLoggerTraceSlowThreshold(t *testing.T) {
+	sourceField := "test"
+	ctx, buf, _, l := setupLogger(Config{
+		SourceField: sourceField,
+		SlowThreshold: time.Second,
+	})
+
+	sqlQuery := "SELECT 1 FROM table"
+	rows := int64(1e6)
+	fc := func() (string, int64) {
+		return sqlQuery, rows
+	}
+
+	now := time.Now()
+	begin := now.Add((-1) * time.Minute)
+	l.Trace(ctx, begin, fc, nil)
+
+	var logData LogRow
+	if err := json.Unmarshal(buf.Bytes(), &logData); err != nil {
+		t.Errorf("Trace() slow threshold test error, failed to parse log row: %v", err)
+	}
+
+	levelWant := "warning"
+	if logData.Level != levelWant {
+		t.Errorf("Trace() slow threshold test error, unexpected log level '%v', expected '%v'", logData.Level, levelWant)
+	}
+
+	if !strings.Contains(logData.Message, sqlQuery) {
+		t.Errorf("Trace() slow threshold test error, unexpected SQL query in message: %v, expected: %v", logData.Message, sqlQuery)
+	}
+
+	if !strings.Contains(logData.Message, "SLOW SQL") {
+		t.Errorf("Trace() slow threshold test error, there is not info about SLOW SQL, got message: %v", logData.Message)
+	}
+
+	if !strings.Contains(logData.Message, fmt.Sprintf("rows:%d", rows)) {
+		t.Errorf("Trace() slow threshold test error, invalid rows info, expected 'rows:%d', got message: %v", rows, logData.Message)
+	}
+
+	if logData.Test == "" {
+		t.Errorf("Trace() slow threshold test error, source key '%v' doesn't exists on log row: %v", sourceField, buf.String())
+	}
+}
+
+func TestLoggerTraceInfo(t *testing.T) {
+	ctx, buf, _, l := setupLogger(Config{})
+
+	fc := func() (string, int64) {
+		return "", -1
+	}
+
+	l.Trace(ctx, time.Now(), fc, nil)
+
+	var logData LogRow
+	if err := json.Unmarshal(buf.Bytes(), &logData); err != nil {
+		t.Errorf("Trace() info test error, failed to parse log row: %v", err)
+	}
+
+	levelWant := "info"
+	if logData.Level != levelWant {
+		t.Errorf("Trace() info test error, unexpected log level '%v', expected '%v'", logData.Level, levelWant)
+	}
+
+	buf.Reset()
+
+	nl := l.LogMode(gormLogger.Silent)
+
+	nl.Trace(ctx, time.Now(), fc, nil)
+
+	silentLog := buf.String()
+	if silentLog != "" {
+		t.Errorf("Trace() info test error, with a silent mode, the following log is output: %v", silentLog)
+	}
 }
 
