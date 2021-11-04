@@ -16,13 +16,17 @@ type Config struct {
 	SlowThreshold	time.Duration
 	LogLevel	gormLogger.LogLevel
 	SkipErrRecordNotFound bool
-	sourceField	string
 }
 
 type Logger struct {
 	log	*logrus.Logger
 	config Config
+	sourceField	string
 	traceStr, traceWarnStr, traceErrStr	string
+}
+
+func (l *Logger) GetLogger() *logrus.Logger {
+	return l.log
 }
 
 func (l *Logger) LogMode(level gormLogger.LogLevel) gormLogger.Interface {
@@ -58,8 +62,8 @@ func (l *Logger) Trace(ctx context.Context, begin time.Time, fc func() (string, 
 	elapsed := time.Since(begin)
 	sql, rows := fc()
 	fields := logrus.Fields{}
-	if l.config.sourceField != "" {
-		fields[l.config.sourceField] = utils.FileWithLineNum()
+	if l.sourceField != "" {
+		fields[l.sourceField] = utils.FileWithLineNum()
 	}
 
 	elapsedMs := float64(elapsed.Nanoseconds())/1e6
