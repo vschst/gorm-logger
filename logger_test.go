@@ -18,7 +18,6 @@ type LogRow struct {
 	Level string `json:"level"`
 	Message	string	`json:"msg"`
 	Module	string	`json:"module"`
-	Data	[]interface{}	`json:"data"`
 	Test	string `json:"test"`
 	Error	string	`json:"error"`
 }
@@ -36,18 +35,14 @@ func setupLogger(config Config) (context.Context, *bytes.Buffer, *logrus.Logger,
 	return ctx, buf, log, l
 }
 
-func compareLogData(x, y []interface{}) (bool, error) {
-	xBuf, err := json.Marshal(x)
-	if err != nil {
-		return false, fmt.Errorf("failed to marshal first value: %v", err)
+func compareExtraArgs(msg string, args []interface{}) bool {
+	for _, arg := range args {
+		if !strings.Contains(msg, fmt.Sprintf("%T=%v", arg, arg)) {
+			return false
+		}
 	}
 
-	yBuf, err := json.Marshal(y)
-	if err != nil {
-		return false, fmt.Errorf("failed to marshall second value: %v", err)
-	}
-
-	return bytes.Equal(xBuf, yBuf), nil
+	return true
 }
 
 func TestInstance(t *testing.T) {
@@ -133,8 +128,8 @@ func TestLoggerInfo(t *testing.T) {
 			t.Errorf("Info() output test error, failed to parse log row: %v, got string: %v", err, buf.String())
 		}
 
-		if logData.Message != infoTest.msg {
-			t.Errorf("Info() output test failed, unexpected log msg '%v', expected '%v'", logData.Message, infoTest.msg)
+		if !strings.HasPrefix(logData.Message, infoTest.msg) {
+			t.Errorf("Info() output test failed, unexpected start of log msg '%v', expected '%v'", logData.Message, infoTest.msg)
 		}
 
 		if logData.Module != moduleName {
@@ -142,14 +137,10 @@ func TestLoggerInfo(t *testing.T) {
 		}
 
 		if infoTest.args != nil {
-			isEqual, err := compareLogData(logData.Data, infoTest.args)
-
-			if err != nil {
-				t.Errorf("Info() output test failed, failed to compare log data, compared values %v and %v", logData.Data, infoTest.args)
-			}
+			isEqual := compareExtraArgs(logData.Message, infoTest.args)
 
 			if !isEqual {
-				t.Errorf("Info() output test failed, compared values %v and %v don't match", logData.Data, infoTest.args)
+				t.Errorf("Info() output test failed, log msg %v doesn't contain extra args %v", logData.Message, infoTest.args)
 			}
 		}
 
@@ -185,8 +176,8 @@ func TestLoggerWarn(t *testing.T) {
 			t.Errorf("Warn() output test error, failed to parse log row: %v, got string: %v", err, buf.String())
 		}
 
-		if logData.Message != infoTest.msg {
-			t.Errorf("Warn() output test failed, unexpected log msg '%v', expected '%v'", logData.Message, infoTest.msg)
+		if !strings.HasPrefix(logData.Message, infoTest.msg) {
+			t.Errorf("Warn() output test failed, unexpected start of log msg '%v', expected '%v'", logData.Message, infoTest.msg)
 		}
 
 		if logData.Module != moduleName {
@@ -194,14 +185,10 @@ func TestLoggerWarn(t *testing.T) {
 		}
 
 		if infoTest.args != nil {
-			isEqual, err := compareLogData(logData.Data, infoTest.args)
-
-			if err != nil {
-				t.Errorf("Warn() output test failed, failed to compare log data, compared values %v and %v", logData.Data, infoTest.args)
-			}
+			isEqual := compareExtraArgs(logData.Message, infoTest.args)
 
 			if !isEqual {
-				t.Errorf("Warn() output test failed, compared values %v and %v don't match", logData.Data, infoTest.args)
+				t.Errorf("Warn() output test failed, log msg %v doesn't contain extra args %v", logData.Message, infoTest.args)
 			}
 		}
 
@@ -237,8 +224,8 @@ func TestLoggerError(t *testing.T) {
 			t.Errorf("Error() output test error, failed to parse log row: %v, got string: %v", err, buf.String())
 		}
 
-		if logData.Message != infoTest.msg {
-			t.Errorf("Error() output test failed, unexpected log msg '%v', expected '%v'", logData.Message, infoTest.msg)
+		if !strings.HasPrefix(logData.Message, infoTest.msg) {
+			t.Errorf("Error() output test failed, unexpected start of log msg '%v', expected '%v'", logData.Message, infoTest.msg)
 		}
 
 		if logData.Module != moduleName {
@@ -246,14 +233,10 @@ func TestLoggerError(t *testing.T) {
 		}
 
 		if infoTest.args != nil {
-			isEqual, err := compareLogData(logData.Data, infoTest.args)
-
-			if err != nil {
-				t.Errorf("Error() output test failed, failed to compare log data, compared values %v and %v", logData.Data, infoTest.args)
-			}
+			isEqual := compareExtraArgs(logData.Message, infoTest.args)
 
 			if !isEqual {
-				t.Errorf("Error() output test failed, compared values %v and %v don't match", logData.Data, infoTest.args)
+				t.Errorf("Error() output test failed, log msg %v doesn't contain extra args %v", logData.Message, infoTest.args)
 			}
 		}
 
