@@ -1,10 +1,10 @@
-# CryptoMath GORM Logger
+# GORM Logger
 
 A customized [GORM](https://gorm.io/) logger that implements the [appropriate interface](https://gorm.io/docs/logger.html#Customize-Logger) and uses [Logrus](https://github.com/sirupsen/logrus) to output logs.
 
 ## Install
 ```shell
-go get github.com/mathandcrypto/cryptomath-gorm-logger
+go get github.com/vschst/gorm-logger
 ```
 
 ## Basic usage
@@ -12,7 +12,7 @@ go get github.com/mathandcrypto/cryptomath-gorm-logger
 package main
 
 import (
-    "github.com/mathandcrypto/cryptomath-gorm-logger"
+    "github.com/vschst/gorm-logger"
     "github.com/sirupsen/logrus"
     "gorm.io/driver/sqlite"
     "gorm.io/gorm"
@@ -48,6 +48,6 @@ The `logger.Config` structure has the following fields:
 
 ## License
 
-© CryptoMath, since 2021
+© Viktor Schastnyy, since 2021
 
-Released under the [MIT License](https://github.com/mathandcrypto/cryptomath-gorm-logger/blob/master/LICENSE)
+Released under the [MIT License](https://github.com/vschst/gorm-logger/blob/master/LICENSE)
