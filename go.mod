@@ -1,4 +1,4 @@
-module github.com/mathandcrypto/cryptomath-gorm-logger
+module github.com/vschst/gorm-logger
 
 go 1.17
 
